@@ -15,23 +15,7 @@ async def top(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.get("/hello", response_class=HTMLResponse)
-async def hello(request: Request):
-    return templates.TemplateResponse(
-        "hello.html", {"request": request, "message": "Hello, World!"}
-    )
-
-
-# POSTでnameを受け取り、10回書いたテキストファイルをダウンロードさせる
-@app.post("/dltest")
-async def download_file(name: str = Form(...)):
-    content = "\n".join([name] * 20)
-    file_like = StringIO(content)
-    headers = {"Content-Disposition": 'attachment; filename="names.txt"'}
-    return StreamingResponse(file_like, media_type="text/plain", headers=headers)
-
-
-# フォームの全項目を受け取り、テキストファイルに書き込んでダウンロードさせる（/download/outsourcing）
+# generate_docxでWordファイルを一時生成し、ダウンロードさせる（/download/outsourcing）
 @app.post("/download/outsourcing")
 async def download_contract_info(
     company_name: str = Form(...),
