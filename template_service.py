@@ -38,7 +38,7 @@ def generate_docx(template_path, output_dir, context):
 
 # --- 使用例 ---
 if __name__ == "__main__":
-    template_path = "./template/outsourcing.docx"  # テンプレートファイル
+    template_path = "./contract_templates/outsourcing.docx"  # テンプレートファイル
     output_dir = "./dist"  # 出力フォルダ
 
     # 差し込みデータ
