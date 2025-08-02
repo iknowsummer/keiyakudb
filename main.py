@@ -31,6 +31,19 @@ async def download_file(name: str = Form(...)):
     return StreamingResponse(file_like, media_type="text/plain", headers=headers)
 
 
+# outsourcing.docxをダウンロードさせるエンドポイント
+@app.get("/template-download/outsourcing")
+async def download_outsourcing():
+    file_path = os.path.join(BASE_DIR, "contract_templates", "outsourcing.docx")
+    file_like = open(file_path, "rb")
+    headers = {"Content-Disposition": 'attachment; filename="outsourcing.docx"'}
+    return StreamingResponse(
+        file_like,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=headers,
+    )
+
+
 # サーバ起動用（開発用）
 if __name__ == "__main__":
     import uvicorn
