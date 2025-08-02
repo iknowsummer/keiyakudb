@@ -31,6 +31,29 @@ async def download_file(name: str = Form(...)):
     return StreamingResponse(file_like, media_type="text/plain", headers=headers)
 
 
+# フォームの全項目を受け取り、テキストファイルに書き込んでダウンロードさせる（/download/outsourcing）
+@app.post("/download/outsourcing")
+async def download_contract_info(
+    company_name: str = Form(...),
+    company_address: str = Form(...),
+    representative_name: str = Form(...),
+    client_name: str = Form(...),
+    client_address: str = Form(...),
+    service_description: str = Form(...),
+    price: str = Form(...),
+    payment_method: str = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    year: str = Form(...),
+    month: str = Form(...),
+    day: str = Form(...),
+):
+    content = f"""会社名: {company_name}\n会社住所: {company_address}\n代表者名: {representative_name}\nクライアント名: {client_name}\nクライアント住所: {client_address}\n業務内容: {service_description}\n金額: {price}\n支払方法: {payment_method}\n開始日: {start_date}\n終了日: {end_date}\n契約日: {year}年{month}月{day}日\n"""
+    file_like = StringIO(content)
+    headers = {"Content-Disposition": 'attachment; filename="contract_info.txt"'}
+    return StreamingResponse(file_like, media_type="text/plain", headers=headers)
+
+
 # outsourcing.docxをダウンロードさせるエンドポイント
 @app.get("/template-download/outsourcing")
 async def download_outsourcing():
