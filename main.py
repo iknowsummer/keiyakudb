@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
-from template_service import generate_docx_stream
+from template_service import generate_docx_stream, convert_stream_docx2pdf
 
 app = FastAPI()
 
@@ -17,7 +17,7 @@ async def top(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-# generate_docxでWordファイルを一時生成し、ダウンロードさせる（/download/outsourcing）
+# docx→PDFファイルを一時生成しダウンロードさせる（/download/outsourcing）
 @app.post("/download/outsourcing")
 async def download_contract_info(
     company_name: str = Form(...),
@@ -53,12 +53,16 @@ async def download_contract_info(
     template_path = os.path.join(BASE_DIR, "contract_templates", "outsourcing.docx")
 
     # generate_docx_streamがBytesIOを返す前提で修正
-    file_like = generate_docx_stream(template_path, context)
-    file_like.seek(0)
-    headers = {"Content-Disposition": 'attachment; filename="outsourcing.docx"'}
+    docx_like = generate_docx_stream(template_path, context)
+
+    # BytesIOをPDF変換
+    pdf_like = convert_stream_docx2pdf(docx_like)
+
+    pdf_like.seek(0)
+    headers = {"Content-Disposition": 'attachment; filename="outsourcing.pdf"'}
     return StreamingResponse(
-        file_like,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        pdf_like,
+        media_type="application/pdf",
         headers=headers,
     )
 

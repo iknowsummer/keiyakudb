@@ -1,7 +1,12 @@
-from io import BytesIO
-from docxtpl import DocxTemplate
-from datetime import datetime
+import tempfile
+import subprocess
+import sys
+import shutil
 import os
+from io import BytesIO
+from datetime import datetime
+
+from docxtpl import DocxTemplate
 
 
 # メモリ上にWordファイルを生成してBytesIOで返す関数
@@ -21,26 +26,54 @@ def generate_docx_stream(template_path, context):
     return file_like
 
 
-# ファイル保存用ラッパー
-def generate_docx_file(template_path, output_dir, context):
+# docxのストリームをPDFストリームに変換する関数
+def convert_stream_docx2pdf(docx_stream):
     """
-    Word契約書をテンプレートから生成し、日付+時刻サフィックス付きで保存
+    WordドキュメントのストリームをPDFに変換してBytesIOで返す
+    LibreOffice(soffice)をサブプロセスで呼び出して変換
 
-    :param template_path: テンプレートファイルのパス
-    :param output_dir: 出力ディレクトリ
-    :param context: 差し込みデータを格納した辞書
-    :return: 保存したファイルのパス
+    :param docx_stream: WordドキュメントのBytesIOオブジェクト
+    :return: PDFのBytesIOオブジェクト
     """
-    # 日付＋時刻のサフィックスを生成
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    template_basename = os.path.splitext(os.path.basename(template_path))[0]
-    output_filename = f"{template_basename}_{timestamp}.docx"
-    output_path = os.path.join(output_dir, output_filename)
 
-    os.makedirs(output_dir, exist_ok=True)
-    file_like = generate_docx_stream(template_path, context)
+    # 一時ファイル・一時ディレクトリ作成
+    with tempfile.TemporaryDirectory() as tmpdir:
+        docx_path = os.path.join(tmpdir, "input.docx")
+        pdf_path = os.path.join(tmpdir, "input.pdf")
 
-    with open(output_path, "wb") as f:
-        f.write(file_like.getvalue())
+        # docx_streamを一時ファイルに書き出し
+        with open(docx_path, "wb") as f:
+            f.write(docx_stream.getvalue())
 
-    return output_path
+        # OSごとにsofficeコマンドのパスを決定
+        if sys.platform.startswith("win"):
+            soffice_cmd = (
+                shutil.which("soffice.exe")
+                or "C:\\Program Files\\LibreOffice\\program\\soffice.exe"
+            )
+        else:
+            soffice_cmd = shutil.which("soffice") or "/usr/bin/soffice"
+
+        # LibreOfficeでPDF変換（ヘッドレス）
+        cmd = [
+            soffice_cmd,
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            tmpdir,
+            docx_path,
+        ]
+        try:
+            subprocess.run(
+                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+        except Exception as e:
+            raise RuntimeError(f"PDF変換失敗: {e}")
+
+        # 変換後のPDFをBytesIOで返す
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError("PDF変換に失敗しました")
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+        return BytesIO(pdf_bytes)
