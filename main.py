@@ -1,8 +1,10 @@
+import os
+
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-import os
-from io import StringIO
+
+from template_service import generate_docx_stream
 
 app = FastAPI()
 
@@ -32,10 +34,33 @@ async def download_contract_info(
     month: str = Form(...),
     day: str = Form(...),
 ):
-    content = f"""会社名: {company_name}\n会社住所: {company_address}\n代表者名: {representative_name}\nクライアント名: {client_name}\nクライアント住所: {client_address}\n業務内容: {service_description}\n金額: {price}\n支払方法: {payment_method}\n開始日: {start_date}\n終了日: {end_date}\n契約日: {year}年{month}月{day}日\n"""
-    file_like = StringIO(content)
-    headers = {"Content-Disposition": 'attachment; filename="contract_info.txt"'}
-    return StreamingResponse(file_like, media_type="text/plain", headers=headers)
+    # 差し込みデータを辞書化
+    context = {
+        "company_name": company_name,
+        "company_address": company_address,
+        "representative_name": representative_name,
+        "client_name": client_name,
+        "client_address": client_address,
+        "service_description": service_description,
+        "price": price,
+        "payment_method": payment_method,
+        "start_date": start_date,
+        "end_date": end_date,
+        "year": year,
+        "month": month,
+        "day": day,
+    }
+    template_path = os.path.join(BASE_DIR, "contract_templates", "outsourcing.docx")
+
+    # generate_docx_streamがBytesIOを返す前提で修正
+    file_like = generate_docx_stream(template_path, context)
+    file_like.seek(0)
+    headers = {"Content-Disposition": 'attachment; filename="outsourcing.docx"'}
+    return StreamingResponse(
+        file_like,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=headers,
+    )
 
 
 # outsourcing.docxをダウンロードさせるエンドポイント
