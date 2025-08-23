@@ -1,6 +1,7 @@
+import anyio
 import os
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
@@ -58,7 +59,10 @@ async def download_contract_info(
     docx_like = generate_docx_stream(template_path, context)
 
     # BytesIOをPDF変換
-    pdf_like = convert_stream_docx2pdf(docx_like)
+    try:
+        pdf_like = await anyio.to_thread.run_sync(convert_stream_docx2pdf, docx_like)
+    except Exception:
+        raise HTTPException(502, "PDF変換に失敗しました")
 
     pdf_like.seek(0)
     headers = {"Content-Disposition": 'attachment; filename="outsourcing.pdf"'}
