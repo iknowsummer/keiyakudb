@@ -5,6 +5,8 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN apt-get update && apt-get upgrade -y && apt-get install -y libreoffice && apt-get clean
+
 COPY ./app ./app
 COPY ./contract_templates ./contract_templates
 COPY ./templates ./templates
