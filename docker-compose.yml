@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./contract_templates:/app/contract_templates
+      - ./templates:/app/templates
+    environment:
+      - TZ=Asia/Tokyo
