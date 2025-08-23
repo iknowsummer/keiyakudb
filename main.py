@@ -53,6 +53,8 @@ async def download_contract_info(
     template_path = os.path.join(BASE_DIR, "contract_templates", "outsourcing.docx")
 
     # generate_docx_streamがBytesIOを返す前提で修正
+    if not os.path.exists(template_path):
+        raise HTTPException(400, "template not found")
     docx_like = generate_docx_stream(template_path, context)
 
     # BytesIOをPDF変換
