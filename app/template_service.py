@@ -1,6 +1,5 @@
 import tempfile
 import subprocess
-import sys
 import shutil
 import os
 from io import BytesIO
@@ -37,13 +36,7 @@ def convert_stream_docx2pdf(docx_stream, timeout_sec: int = 20):
         pdf_path = os.path.join(tmpdir, "input.pdf")
         with open(docx_path, "wb") as f:
             f.write(docx_stream.getvalue())
-        if sys.platform.startswith("win"):
-            soffice_cmd = (
-                shutil.which("soffice.exe")
-                or "C:\\Program Files\\LibreOffice\\program\\soffice.exe"
-            )
-        else:
-            soffice_cmd = shutil.which("soffice") or "/usr/bin/soffice"
+        soffice_cmd = shutil.which("soffice") or "/usr/bin/soffice"
         cmd = [
             soffice_cmd,
             "--headless",
