@@ -27,7 +27,7 @@ def generate_docx_stream(template_path, context):
 
 
 # docxのストリームをPDFストリームに変換する関数
-def convert_stream_docx2pdf(docx_stream):
+def convert_stream_docx2pdf(docx_stream, timeout_sec: int = 20):
     """
     WordドキュメントのストリームをPDFに変換してBytesIOで返す
     LibreOffice(soffice)をサブプロセスで呼び出して変換
@@ -66,8 +66,14 @@ def convert_stream_docx2pdf(docx_stream):
         ]
         try:
             subprocess.run(
-                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                cmd,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=timeout_sec,
             )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("PDF変換がタイムアウトしました")
         except Exception as e:
             raise RuntimeError(f"PDF変換失敗: {e}")
 
