@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+RUN apt-get update && apt-get upgrade -y && apt-get install -y libreoffice && apt-get clean
+
+COPY ./app ./app
+COPY ./contract_templates ./contract_templates
+COPY ./templates ./templates
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
