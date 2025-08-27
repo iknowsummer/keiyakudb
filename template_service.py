@@ -1,62 +1,85 @@
-from docxtpl import DocxTemplate
-from datetime import datetime
+import tempfile
+import subprocess
+import sys
+import shutil
 import os
+from io import BytesIO
+from datetime import datetime
+
+from docxtpl import DocxTemplate
 
 
-def generate_docx(template_path, output_dir, context):
+# メモリ上にWordファイルを生成してBytesIOで返す関数
+def generate_docx_stream(template_path, context):
     """
-    Word契約書をテンプレートから生成し、日付+時刻サフィックス付きで保存
+    Word契約書をテンプレートから生成し、BytesIOで返す
 
     :param template_path: テンプレートファイルのパス
-    :param output_dir: 出力ディレクトリ
     :param context: 差し込みデータを格納した辞書
+    :return: BytesIOオブジェクト
     """
-    # テンプレート読み込み
     tpl = DocxTemplate(template_path)
-
-    # 差し込みデータ適用
     tpl.render(context)
-
-    # 日付＋時刻のサフィックスを生成
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # テンプレートファイル名（拡張子なし）を取得
-    template_basename = os.path.splitext(os.path.basename(template_path))[0]
-
-    # 出力先ファイル名を作成
-    output_filename = f"{template_basename}_{context['client_name']}_{timestamp}.docx"
-    output_path = os.path.join(output_dir, output_filename)
-
-    # 出力先フォルダが存在しなければ作成
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Wordファイルとして保存
-    tpl.save(output_path)
-
-    print(f"✅ 契約書を生成しました: {output_path}")
+    file_like = BytesIO()
+    tpl.save(file_like)
+    file_like.seek(0)
+    return file_like
 
 
-# --- 使用例 ---
-if __name__ == "__main__":
-    template_path = "./contract_templates/outsourcing.docx"  # テンプレートファイル
-    output_dir = "./dist"  # 出力フォルダ
+# docxのストリームをPDFストリームに変換する関数
+def convert_stream_docx2pdf(docx_stream, timeout_sec: int = 20):
+    """
+    WordドキュメントのストリームをPDFに変換してBytesIOで返す
+    LibreOffice(soffice)をサブプロセスで呼び出して変換
 
-    # 差し込みデータ
-    context = {
-        "company_name": "株式会社サンプル",
-        "company_address": "東京都港区1-2-3",
-        "representative_name": "代表取締役 佐藤一郎",
-        "client_name": "山田太郎",
-        "client_address": "大阪府大阪市中央区1-2-3",
-        "service_description": "Webサイト制作業務",
-        "price": "150000",
-        "payment_method": "銀行振込",
-        "start_date": "2025年8月10日",
-        "end_date": "2025年12月31日",
-        "year": "7",
-        "month": "8",
-        "day": "2",
-    }
+    :param docx_stream: WordドキュメントのBytesIOオブジェクト
+    :return: PDFのBytesIOオブジェクト
+    """
 
-    # 契約書生成
-    generate_docx(template_path, output_dir, context)
+    # 一時ファイル・一時ディレクトリ作成
+    with tempfile.TemporaryDirectory() as tmpdir:
+        docx_path = os.path.join(tmpdir, "input.docx")
+        pdf_path = os.path.join(tmpdir, "input.pdf")
+
+        # docx_streamを一時ファイルに書き出し
+        with open(docx_path, "wb") as f:
+            f.write(docx_stream.getvalue())
+
+        # OSごとにsofficeコマンドのパスを決定
+        if sys.platform.startswith("win"):
+            soffice_cmd = (
+                shutil.which("soffice.exe")
+                or "C:\\Program Files\\LibreOffice\\program\\soffice.exe"
+            )
+        else:
+            soffice_cmd = shutil.which("soffice") or "/usr/bin/soffice"
+
+        # LibreOfficeでPDF変換（ヘッドレス）
+        cmd = [
+            soffice_cmd,
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            tmpdir,
+            docx_path,
+        ]
+        try:
+            subprocess.run(
+                cmd,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=timeout_sec,
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("PDF変換がタイムアウトしました")
+        except Exception as e:
+            raise RuntimeError(f"PDF変換失敗: {e}")
+
+        # 変換後のPDFをBytesIOで返す
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError("PDF変換に失敗しました")
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+        return BytesIO(pdf_bytes)
